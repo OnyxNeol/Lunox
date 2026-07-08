@@ -87,6 +87,10 @@ jobs:
       - name: Prepare environment
         run: |
           echo "REPDIR=$(pwd)" >> $GITHUB_ENV
+          echo "osver=11.3" >> $GITHUB_ENV
+          echo "xcodever=16.2" >> $GITHUB_ENV
+          echo "arch=arm64" >> $GITHUB_ENV
+          echo "build_type=Release" >> $GITHUB_ENV
 
       - name: Install deps
         run: |
