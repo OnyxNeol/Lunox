@@ -14,28 +14,23 @@ local valid_disabled_settings = {
 local current_name = core.settings:get("name")
 local current_port = core.settings:get("port")
 
--- Currently chosen game in gamebar for theming and filtering
+-- Lunox ships with exactly one built-in game (VoxeLibre-based core), so we
+-- always resolve to it directly instead of showing a game picker.
 function current_game()
-	local gameid = core.settings:get("menu_last_game")
-	local game = gameid and pkgmgr.find_by_gameid(gameid)
-	-- Fall back to first game installed if one exists.
-	if not game and #pkgmgr.games > 0 then
-
-		-- If devtest is the first game in the list and there is another
-		-- game available, pick the other game instead.
-		local picked_game
-		if pkgmgr.games[1].id == "devtest" and #pkgmgr.games > 1 then
-			picked_game = 2
-		else
-			picked_game = 1
-		end
-
-		game = pkgmgr.games[picked_game]
-		gameid = game.id
-		core.settings:set("menu_last_game", gameid)
+	local game = pkgmgr.find_by_gameid("lunox")
+	if game then
+		core.settings:set("menu_last_game", "lunox")
+		return game
 	end
 
-	return game
+	-- Defensive fallback, should never happen in a proper Lunox build.
+	if #pkgmgr.games > 0 then
+		game = pkgmgr.games[1]
+		core.settings:set("menu_last_game", game.id)
+		return game
+	end
+
+	return nil
 end
 
 -- Apply menu changes from given game
@@ -58,65 +53,13 @@ function apply_game(game)
 	menu_worldmt_legacy(index)
 end
 
+-- Lunox has exactly one built-in game, so there's no game picker to show.
 function singleplayer_refresh_gamebar()
-
 	local old_bar = ui.find_by_name("game_button_bar")
 	if old_bar ~= nil then
 		old_bar:delete()
 	end
-
-	-- Hide gamebar if no games are installed
-	if #pkgmgr.games == 0 then
-		return false
-	end
-
-	local function game_buttonbar_button_handler(fields)
-		for _, game in ipairs(pkgmgr.games) do
-			if fields["game_btnbar_" .. game.id] then
-				apply_game(game)
-				return true
-			end
-		end
-	end
-
-	local TOUCH_GUI = core.settings:get_bool("touch_gui")
-
-	local gamebar_pos_y = MAIN_TAB_H
-		+ TABHEADER_H -- tabheader included in formspec size
-		+ (TOUCH_GUI and GAMEBAR_OFFSET_TOUCH or GAMEBAR_OFFSET_DESKTOP)
-
-	local btnbar = buttonbar_create(
-			"game_button_bar",
-			{x = 0, y = gamebar_pos_y},
-			{x = MAIN_TAB_W, y = GAMEBAR_H},
-			"#000000",
-			game_buttonbar_button_handler)
-
-	for _, game in ipairs(pkgmgr.games) do
-		local btn_name = "game_btnbar_" .. game.id
-
-		local image = nil
-		local text = nil
-		local tooltip = core.formspec_escape(game.title)
-
-		if (game.menuicon_path or "") ~= "" then
-			image = core.formspec_escape(game.menuicon_path)
-		else
-			local part1 = game.id:sub(1,5)
-			local part2 = game.id:sub(6,10)
-			local part3 = game.id:sub(11)
-
-			text = part1 .. "\n" .. part2
-			if part3 ~= "" then
-				text = text .. "\n" .. part3
-			end
-		end
-		btnbar:add_button(btn_name, text, image, tooltip)
-	end
-
-	local plus_image = core.formspec_escape(defaulttexturedir .. "plus.png")
-	btnbar:add_button("game_open_cdb", "", plus_image, fgettext("Install games from ContentDB"))
-	return true
+	return false
 end
 
 local function get_disabled_settings(game)
@@ -146,22 +89,6 @@ local function get_disabled_settings(game)
 end
 
 local function get_formspec(tabview, name, tabdata)
-
-	-- Point the player to ContentDB when no games are found
-	if #pkgmgr.games == 0 then
-		local W = tabview.width
-		local H = tabview.height
-
-		local hypertext = "<global valign=middle halign=center size=18>" ..
-				fgettext_ne("Luanti is a game-creation platform that allows you to play many different games.") .. "\n" ..
-				fgettext_ne("Luanti doesn't come with a game by default.") .. " " ..
-				fgettext_ne("You need to install a game before you can create a world.")
-
-		local button_y = H * 2/3 - 0.6
-		return table.concat({
-			"hypertext[0.375,0;", W - 2*0.375, ",", button_y, ";ht;", core.formspec_escape(hypertext), "]",
-			"button[5.25,", button_y, ";5,1.2;game_open_cdb;", fgettext("Install a game"), "]"})
-	end
 
 	local retval = ""
 
@@ -272,15 +199,6 @@ end
 local function main_button_handler(this, fields, name, tabdata)
 
 	assert(name == "local")
-
-	if fields.game_open_cdb then
-		local maintab = ui.find_by_name("maintab")
-		local dlg = create_contentdb_dlg("game")
-		dlg:set_parent(maintab)
-		maintab:hide()
-		dlg:show()
-		return true
-	end
 
 	if this.dlg_create_world_closed_at == nil then
 		this.dlg_create_world_closed_at = 0
