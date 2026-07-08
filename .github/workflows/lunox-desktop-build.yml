@@ -110,13 +110,14 @@ jobs:
 
       - name: Strip devtest and package
         run: |
-          rm -rf build/macos/Lunox.app/Contents/Resources/games/devtest 2>/dev/null || true
-          rm -rf build/macos/luanti.app/Contents/Resources/games/devtest 2>/dev/null || true
-          cd build
-          rm -rf macpkg && mkdir macpkg
-          appdir=$(find . -maxdepth 1 -iname '*.app')
-          cp -R "$appdir" macpkg/Lunox.app
-          cd macpkg
+          set -e
+          appdir=$(find build -maxdepth 2 -iname '*.app' | head -n1)
+          echo "Found app bundle: $appdir"
+          rm -rf "$appdir/Contents/Resources/games/devtest" || true
+          mkdir -p build/macpkg
+          rm -rf build/macpkg/Lunox.app
+          cp -R "$appdir" build/macpkg/Lunox.app
+          cd build/macpkg
           zip -r -q "$GITHUB_WORKSPACE/Lunox-macos.zip" Lunox.app
 
       - uses: actions/upload-artifact@v4
@@ -130,6 +131,8 @@ jobs:
     needs: [linux, windows, macos]
     if: always() && (needs.linux.result == 'success' || needs.windows.result == 'success' || needs.macos.result == 'success')
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
