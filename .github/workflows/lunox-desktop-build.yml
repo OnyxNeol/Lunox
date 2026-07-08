@@ -43,6 +43,41 @@ jobs:
           path: Lunox-linux-x64.zip
           if-no-files-found: warn
 
+      - name: Build AppImage
+        run: |
+          set -e
+          APPDIR="$GITHUB_WORKSPACE/AppImageDir"
+          mkdir -p "$APPDIR"
+          cp -r package/Lunox/* "$APPDIR/"
+
+          cat > "$APPDIR/AppRun" <<'EOF'
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "${0}")")"
+exec "$HERE/bin/luanti" "$@"
+EOF
+          chmod +x "$APPDIR/AppRun"
+
+          cat > "$APPDIR/lunox.desktop" <<'EOF'
+[Desktop Entry]
+Name=Lunox
+Exec=luanti
+Icon=lunox
+Type=Application
+Categories=Game;
+EOF
+          cp misc/luanti-xorg-icon-128.png "$APPDIR/lunox.png"
+
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run "$APPDIR" "$GITHUB_WORKSPACE/Lunox-x86_64.AppImage"
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-linux-appimage
+          path: Lunox-x86_64.AppImage
+          if-no-files-found: warn
+
   windows:
     name: "Windows desktop build (MinGW 64-bit)"
     runs-on: ubuntu-24.04
@@ -71,11 +106,32 @@ jobs:
           inner=$(ls)
           mv "$inner" Lunox
           zip -r -q "$GITHUB_WORKSPACE/Lunox-windows-x64.zip" Lunox
+          echo "REPACK_DIR=$dest" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
           name: Lunox-windows-x64
           path: Lunox-windows-x64.zip
+          if-no-files-found: warn
+
+      - name: Build Windows installer (.exe)
+        run: |
+          set -e
+          sudo apt-get update -q
+          sudo apt-get install -y nsis
+          workdir=$(mktemp -d)
+          cp -r "$REPACK_DIR/Lunox" "$workdir/Lunox"
+          cp misc/luanti-icon.ico "$workdir/luanti-icon.ico"
+          cp misc/lunox_installer.nsi "$workdir/lunox_installer.nsi"
+          cd "$workdir"
+          makensis -DVERSION_STRING="5.17.0" lunox_installer.nsi
+          cp Lunox-windows-setup.exe "$GITHUB_WORKSPACE/Lunox-windows-setup.exe"
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-windows-setup
+          path: Lunox-windows-setup.exe
           if-no-files-found: warn
 
   macos:
@@ -117,6 +173,9 @@ jobs:
           mkdir -p build/macpkg
           rm -rf build/macpkg/Lunox.app
           cp -R "$appdir" build/macpkg/Lunox.app
+          # Ad-hoc sign so the app launches without a "damaged" error.
+          # (Not notarized -- users may need to right-click > Open the first time.)
+          codesign --force --deep -s - build/macpkg/Lunox.app || true
           cd build/macpkg
           zip -r -q "$GITHUB_WORKSPACE/Lunox-macos.zip" Lunox.app
 
@@ -124,6 +183,18 @@ jobs:
         with:
           name: Lunox-macos
           path: Lunox-macos.zip
+          if-no-files-found: warn
+
+      - name: Build DMG
+        run: |
+          set -e
+          hdiutil create -volname "Lunox" -srcfolder build/macpkg/Lunox.app \
+            -ov -format UDZO "$GITHUB_WORKSPACE/Lunox-macos.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-macos-dmg
+          path: Lunox-macos.dmg
           if-no-files-found: warn
 
   release:
@@ -143,8 +214,16 @@ jobs:
         with:
           tag_name: lunox-latest
           name: "Lunox Desktop Build (latest)"
-          body: "Automated desktop build of Lunox — engine + VoxeLibre-based core game + Copper Spring Launchpad feature."
-          files: artifacts/**/*.zip
+          body: |
+            Automated desktop build of Lunox — engine + VoxeLibre-based core game + Copper Spring Launchpad feature.
+
+            - `Lunox-windows-x64.zip` — portable Windows build (no install needed)
+            - `Lunox-windows-setup.exe` — Windows installer (Start Menu + Desktop shortcuts, uninstaller)
+            - `Lunox-macos.zip` — portable macOS .app bundle
+            - `Lunox-macos.dmg` — macOS disk image (drag Lunox.app to Applications). Not notarized — right-click > Open the first time.
+            - `Lunox-linux-x64.zip` — portable Linux build
+            - `Lunox-x86_64.AppImage` — Linux AppImage (chmod +x, then run directly)
+          files: artifacts/**/*
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

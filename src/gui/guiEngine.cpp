@@ -339,6 +339,48 @@ void GUIEngine::run()
 
 	auto framemarker = FrameMarker("GUIEngine::run()-frame").started();
 
+	// Lunox: show the boot splash logo for a few seconds before the main menu appears.
+	{
+		video::ITexture *splash_tex = m_texture_source->getTexture("lunox_boot_splash.png");
+		if (splash_tex) {
+			const u64 splash_duration_ms = 10000;
+			u64 splash_start = porting::getTimeMs();
+			FpsControl splash_fps_control;
+			splash_fps_control.reset();
+			f32 splash_dtime = 0.0f;
+
+			while (m_rendering_engine->run() && !m_kill &&
+					porting::getTimeMs() - splash_start < splash_duration_ms) {
+				splash_fps_control.limit(device, &splash_dtime);
+
+				if (device->isWindowVisible()) {
+					driver->setFog(m_rendering_engine->m_menu_sky_color);
+					driver->beginScene(true, true, m_rendering_engine->m_menu_sky_color);
+
+					core::dimension2d<u32> screensize = driver->getScreenSize();
+					core::dimension2d<u32> texsize = splash_tex->getOriginalSize();
+					f32 scale = std::min(
+							(f32)screensize.Width / (f32)texsize.Width,
+							(f32)screensize.Height / (f32)texsize.Height) * 0.6f;
+					s32 draw_w = (s32)(texsize.Width * scale);
+					s32 draw_h = (s32)(texsize.Height * scale);
+					core::rect<s32> dest_rect(
+							((s32)screensize.Width - draw_w) / 2,
+							((s32)screensize.Height - draw_h) / 2,
+							((s32)screensize.Width + draw_w) / 2,
+							((s32)screensize.Height + draw_h) / 2);
+					core::rect<s32> src_rect(core::position2d<s32>(0, 0),
+							core::dimension2di(texsize));
+
+					draw2DImageFilterScaled(driver, splash_tex, dest_rect, src_rect,
+							nullptr, nullptr, true);
+
+					driver->endScene();
+				}
+			}
+		}
+	}
+
 	while (m_rendering_engine->run() && !m_startgame && !m_kill) {
 		framemarker.end();
 		fps_control.limit(device, &dtime);
