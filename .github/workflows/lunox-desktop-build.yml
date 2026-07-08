@@ -50,21 +50,11 @@ jobs:
           mkdir -p "$APPDIR"
           cp -r package/Lunox/* "$APPDIR/"
 
-          cat > "$APPDIR/AppRun" <<'EOF'
-#!/bin/sh
-HERE="$(dirname "$(readlink -f "${0}")")"
-exec "$HERE/bin/luanti" "$@"
-EOF
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "${0}")")"\nexec "$HERE/bin/luanti" "$@"\n' > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
 
-          cat > "$APPDIR/lunox.desktop" <<'EOF'
-[Desktop Entry]
-Name=Lunox
-Exec=luanti
-Icon=lunox
-Type=Application
-Categories=Game;
-EOF
+          printf '[Desktop Entry]\nName=Lunox\nExec=luanti\nIcon=lunox\nType=Application\nCategories=Game;\n' > "$APPDIR/lunox.desktop"
+
           cp misc/luanti-xorg-icon-128.png "$APPDIR/lunox.png"
 
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
