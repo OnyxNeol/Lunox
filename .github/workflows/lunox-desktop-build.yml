@@ -1,0 +1,143 @@
+name: Lunox Desktop Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  linux:
+    name: "Linux desktop build"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          source ./util/ci/common.sh
+          install_linux_deps
+
+      - name: Build (Release, run-in-place)
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DRUN_IN_PLACE=TRUE \
+            -DBUILD_SERVER=TRUE
+          cmake --build build --parallel "$(nproc)"
+
+      - name: Package Lunox (engine + bundled game, devtest excluded)
+        run: |
+          mkdir -p package/Lunox
+          cp -r build/* package/Lunox/ 2>/dev/null || true
+          # Run-in-place layout: binaries live at repo root after build
+          rsync -a --exclude 'games/devtest' --exclude '.git' \
+            bin builtin client fonts games locale po textures \
+            minetest.conf.example package/Lunox/ 2>/dev/null || true
+          cd package
+          zip -r -q ../Lunox-linux-x64.zip Lunox
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-linux-x64
+          path: Lunox-linux-x64.zip
+          if-no-files-found: warn
+
+  windows:
+    name: "Windows desktop build (MinGW 64-bit)"
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-compiler + toolchain
+        run: |
+          source ./util/ci/common.sh
+          install_mingw_deps 64 false
+          sudo ./util/buildbot/download_toolchain.sh /usr
+
+      - name: Build
+        run: |
+          EXISTING_MINETEST_DIR=$PWD ./util/buildbot/buildwin64.sh B
+          mkdir -p artifact
+          cp -v B/build/*.zip artifact/ || true
+
+      - name: Repackage as Lunox (strip devtest, rename)
+        run: |
+          dest=$(mktemp -d)
+          unzip -q -d "$dest" artifact/*.zip
+          gamedir=$(find "$dest" -maxdepth 2 -type d -name 'games')
+          rm -rf "$gamedir/devtest" || true
+          cd "$dest"
+          inner=$(ls)
+          mv "$inner" Lunox
+          zip -r -q "$GITHUB_WORKSPACE/Lunox-windows-x64.zip" Lunox
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-windows-x64
+          path: Lunox-windows-x64.zip
+          if-no-files-found: warn
+
+  macos:
+    name: "macOS desktop build"
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare environment
+        run: |
+          echo "REPDIR=$(pwd)" >> $GITHUB_ENV
+
+      - name: Install deps
+        run: |
+          mkdir downloads
+          source ./util/ci/common.sh
+          source ./util/ci/macos_sdk.sh
+          install_macos_precompiled_deps 11.3 arm64
+          install_macos_sdk 11.3 16.2 downloads
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          export DEPS_DIR=/Users/Shared/macos11.3_arm64_deps
+          export USE_XCODE=no
+          ../util/ci/build_macos.sh
+
+      - name: Strip devtest and package
+        run: |
+          rm -rf build/macos/Lunox.app/Contents/Resources/games/devtest 2>/dev/null || true
+          rm -rf build/macos/luanti.app/Contents/Resources/games/devtest 2>/dev/null || true
+          cd build
+          rm -rf macpkg && mkdir macpkg
+          appdir=$(find . -maxdepth 1 -iname '*.app')
+          cp -R "$appdir" macpkg/Lunox.app
+          cd macpkg
+          zip -r -q "$GITHUB_WORKSPACE/Lunox-macos.zip" Lunox.app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lunox-macos
+          path: Lunox-macos.zip
+          if-no-files-found: warn
+
+  release:
+    name: "Publish Lunox release"
+    needs: [linux, windows, macos]
+    if: always() && (needs.linux.result == 'success' || needs.windows.result == 'success' || needs.macos.result == 'success')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create/update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: lunox-latest
+          name: "Lunox Desktop Build (latest)"
+          body: "Automated desktop build of Lunox — engine + VoxeLibre-based core game + Copper Spring Launchpad feature."
+          files: artifacts/**/*.zip
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
