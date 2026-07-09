@@ -1,6 +1,6 @@
 -- =========================================================
 -- Lunox Core Feature: Copper Spring Launchpad + Copper Coil
--- File suggestion: mods/lunox_core/nodes/spring_block.lua
+-- File suggestion: mods/lunox/nodes/spring_block.lua
 -- Requires: VoxeLibre core (mcl_core) already loaded/integrated
 -- =========================================================
 
