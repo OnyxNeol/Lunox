@@ -30,6 +30,10 @@ UninstPage uninstConfirm
 UninstPage instfiles
 
 Section "Install"
+	; Wipe any previous install first so stale/broken files from an older
+	; build (e.g. from before games/lunox was fixed) never linger alongside
+	; the new ones.
+	RMDir /r "$INSTDIR"
 	SetOutPath "$INSTDIR"
 	File /r "Lunox\*.*"
 
