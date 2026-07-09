@@ -51,4 +51,9 @@ Section "Uninstall"
 	Delete "$SMPROGRAMS\Lunox\Uninstall Lunox.lnk"
 	RMDir "$SMPROGRAMS\Lunox"
 	Delete "$DESKTOP\Lunox.lnk"
+
+	MessageBox MB_OK|MB_ICONINFORMATION \
+		"Lunox has been completely removed from your computer.$\r$\n$\r$\n\
+People uninstall apps just like you but we dont judge, no questions just happy you have opened it once even if it was a one sec$\r$\n$\r$\n\
+By Onyxl"
 SectionEnd
