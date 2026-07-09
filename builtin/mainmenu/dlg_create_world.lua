@@ -85,10 +85,14 @@ local function create_world_formspec(dialogdata)
 
 	local flags = dialogdata.flags
 
-	local game = pkgmgr.find_by_gameid(core.settings:get("menu_last_game"))
-	if game == nil then
-		-- should never happen but just pick the first game
-		game = pkgmgr.games[1]
+	-- Lunox ships exactly one built-in game; prefer it directly. Fall back to
+	-- whatever menu_last_game points at, then the first installed game, and
+	-- never index a nil game (a missing games/lunox install must not crash
+	-- the menu -- see the CMakeLists.txt games/lunox install() rule).
+	local game = pkgmgr.find_by_gameid("lunox")
+			or pkgmgr.find_by_gameid(core.settings:get("menu_last_game"))
+			or pkgmgr.games[1]
+	if game ~= nil then
 		core.settings:set("menu_last_game", game.id)
 	end
 
@@ -295,7 +299,7 @@ local function create_world_formspec(dialogdata)
 		"dropdown[0,2.5;6.3;dd_mapgen;" .. mglist .. ";" .. selindex .. "]"
 
 	-- Warning when making a devtest world
-	if game.id == "devtest" then
+	if game ~= nil and game.id == "devtest" then
 		retval = retval ..
 			"container[0,3.5]" ..
 			"box[0,0;5.8,1.7;#ff8800]" ..

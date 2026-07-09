@@ -245,6 +245,13 @@ if(INSTALL_DEVTEST)
 		PATTERN ".git*" EXCLUDE )
 endif()
 
+# Lunox's built-in game (VoxeLibre-based core) -- always installed, on every
+# platform, regardless of INSTALL_DEVTEST. Without this, Windows/macOS builds
+# (which package via real CPack/`make install`, unlike the Linux CI job's
+# manual rsync workaround) ship with an empty games/ dir and crash the menu.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/games/lunox" DESTINATION "${SHAREDIR}/games/"
+	PATTERN ".git*" EXCLUDE )
+
 if(BUILD_CLIENT)
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/client/shaders" DESTINATION "${SHAREDIR}/client")
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/textures/base/pack" DESTINATION "${SHAREDIR}/textures/base")
