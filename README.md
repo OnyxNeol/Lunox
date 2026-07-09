@@ -11,6 +11,22 @@ directly as the game's core (`games/lunox`) rather than as an external/downloada
   starting with the **Copper Spring Launchpad** (`lunox:spring_block`) and **Copper Coil**
   (`lunox:copper_coil`) crafting item.
 
+## Downloads
+Grab a build from the [latest release](https://github.com/OnyxNeol/Lunox/releases/tag/lunox-latest)
+or the [Lunox Stable 0.0.1](https://github.com/OnyxNeol/Lunox/releases/tag/Lunox-Stable-0.0.1) tag:
+
+| Platform | File | Notes |
+| --- | --- | --- |
+| Windows | `Lunox-windows-setup.exe` | Installer — Start Menu + Desktop shortcuts, uninstaller |
+| Windows | `Lunox-windows-x64.zip` | Portable, no install needed |
+| macOS | `Lunox-macos.dmg` | Drag `Lunox.app` to Applications. Not notarized — right-click > Open the first time. |
+| macOS | `Lunox-macos.zip` | Portable `.app` bundle |
+| Linux | `Lunox-x86_64.AppImage` | `chmod +x` then run directly, no install needed |
+| Linux | `Lunox-linux-x64.zip` | Portable build |
+
+Lunox supports both singleplayer and multiplayer (host a game or connect to a server from
+the same executable).
+
 ## Building
 Desktop builds (Linux, Windows, macOS) are produced automatically by
 `.github/workflows/lunox-desktop-build.yml` on every push to `main`, or on demand via
