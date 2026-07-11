@@ -50,3 +50,5 @@ minetest.register_craft({
     output = "lunox:spring_block",
     recipe = {"lunox:copper_coil"},
 })
+
+dofile(minetest.get_modpath(minetest.get_current_modname()) .. "/dapple_forest.lua")
